@@ -29,6 +29,7 @@ static int32_t g_xScreen = 0;
 static int32_t g_yScreen = 0;
 static int32_t g_wScreen = 0;
 static int32_t g_hScreen = 0;
+static MSWindowsHook::EdgeSpans g_visibleEdgeSpans;
 static WPARAM g_deadVirtKey = 0;
 static WPARAM g_deadRelease = 0;
 static LPARAM g_deadLParam = 0;
@@ -101,6 +102,7 @@ int MSWindowsHook::init(DWORD threadID)
   g_yScreen = 0;
   g_wScreen = 0;
   g_hScreen = 0;
+  g_visibleEdgeSpans.clear();
 
   return 1;
 }
@@ -131,6 +133,11 @@ void MSWindowsHook::setZone(int32_t x, int32_t y, int32_t w, int32_t h, int32_t 
   g_yScreen = y;
   g_wScreen = w;
   g_hScreen = h;
+}
+
+void MSWindowsHook::setVisibleEdgeSpans(const EdgeSpans &edgeSpans)
+{
+  g_visibleEdgeSpans = edgeSpans;
 }
 
 void MSWindowsHook::setMode(EHookMode mode)
@@ -551,6 +558,57 @@ static bool mouseHookHandler(WPARAM wParam, int32_t x, int32_t y, int32_t data)
       // check for mouse inside jump zone
       bool inside = false;
       using enum DirectionMask;
+      // Project exposed per-monitor edges onto the virtual desktop boundary so
+      // the server's existing neighbor logic sees the configured side.
+      for (const auto &span : g_visibleEdgeSpans) {
+        bool inSpan = false;
+        switch (span.side) {
+        case Direction::Left:
+          if ((g_zoneSides & static_cast<int>(LeftMask)) != 0) {
+            inSpan = (y >= span.start && y < span.end && x >= span.position && x < span.position + g_zoneSize);
+            if (inSpan) {
+              x = g_xScreen;
+            }
+          }
+          break;
+
+        case Direction::Right:
+          if ((g_zoneSides & static_cast<int>(RightMask)) != 0) {
+            inSpan = (y >= span.start && y < span.end && x >= span.position - g_zoneSize && x < span.position);
+            if (inSpan) {
+              x = g_xScreen + g_wScreen - 1;
+            }
+          }
+          break;
+
+        case Direction::Top:
+          if ((g_zoneSides & static_cast<int>(TopMask)) != 0) {
+            inSpan = (x >= span.start && x < span.end && y >= span.position && y < span.position + g_zoneSize);
+            if (inSpan) {
+              y = g_yScreen;
+            }
+          }
+          break;
+
+        case Direction::Bottom:
+          if ((g_zoneSides & static_cast<int>(BottomMask)) != 0) {
+            inSpan = (x >= span.start && x < span.end && y >= span.position - g_zoneSize && y < span.position);
+            if (inSpan) {
+              y = g_yScreen + g_hScreen - 1;
+            }
+          }
+          break;
+
+        default:
+          break;
+        }
+
+        if (inSpan) {
+          inside = true;
+          break;
+        }
+      }
+
       if (!inside && (g_zoneSides & static_cast<int>(LeftMask)) != 0) {
         inside = (x < g_xScreen + g_zoneSize);
       }

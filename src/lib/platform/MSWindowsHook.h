@@ -7,7 +7,10 @@
 
 #pragma once
 
+#include "base/DirectionTypes.h"
+
 #include <stdint.h>
+#include <vector>
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
@@ -46,6 +49,16 @@ enum EHookMode
 class MSWindowsHook
 {
 public:
+  struct EdgeSpan
+  {
+    Direction side;
+    int32_t start;
+    int32_t end;
+    int32_t position;
+  };
+
+  using EdgeSpans = std::vector<EdgeSpan>;
+
   MSWindowsHook() = default;
   ~MSWindowsHook();
 
@@ -59,6 +72,7 @@ public:
   uint32_t getSides();
 
   void setZone(int32_t x, int32_t y, int32_t w, int32_t h, int32_t jumpZoneSize);
+  void setVisibleEdgeSpans(const EdgeSpans &edgeSpans);
 
   void setMode(EHookMode mode);
 

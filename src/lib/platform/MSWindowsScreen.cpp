@@ -32,6 +32,7 @@
 #include <algorithm>
 #include <comutil.h>
 #include <string.h>
+#include <vector>
 
 // suppress warning about GetVersionEx, which is used indirectly in this
 // compilation unit.
@@ -78,6 +79,142 @@
 
 HINSTANCE MSWindowsScreen::s_windowInstance = nullptr;
 MSWindowsScreen *MSWindowsScreen::s_screen = nullptr;
+
+namespace {
+
+struct MonitorRect
+{
+  int32_t left;
+  int32_t top;
+  int32_t right;
+  int32_t bottom;
+};
+
+struct Interval
+{
+  int32_t start;
+  int32_t end;
+};
+
+int32_t minValue(int32_t lhs, int32_t rhs)
+{
+  return lhs < rhs ? lhs : rhs;
+}
+
+int32_t maxValue(int32_t lhs, int32_t rhs)
+{
+  return lhs > rhs ? lhs : rhs;
+}
+
+void subtractInterval(std::vector<Interval> &intervals, int32_t start, int32_t end)
+{
+  if (start >= end) {
+    return;
+  }
+
+  std::vector<Interval> remaining;
+  for (const auto &interval : intervals) {
+    if (end <= interval.start || start >= interval.end) {
+      remaining.push_back(interval);
+      continue;
+    }
+
+    if (start > interval.start) {
+      remaining.push_back({interval.start, start});
+    }
+    if (end < interval.end) {
+      remaining.push_back({end, interval.end});
+    }
+  }
+
+  intervals = remaining;
+}
+
+BOOL CALLBACK collectMonitorRect(HMONITOR monitor, HDC, LPRECT, LPARAM data)
+{
+  MONITORINFO monitorInfo = {};
+  monitorInfo.cbSize = sizeof(monitorInfo);
+  if (!GetMonitorInfo(monitor, &monitorInfo)) {
+    return TRUE;
+  }
+
+  auto *monitors = reinterpret_cast<std::vector<MonitorRect> *>(data);
+  const auto &rect = monitorInfo.rcMonitor;
+  monitors->push_back(
+      {static_cast<int32_t>(rect.left), static_cast<int32_t>(rect.top), static_cast<int32_t>(rect.right),
+       static_cast<int32_t>(rect.bottom)}
+  );
+
+  return TRUE;
+}
+
+MSWindowsHook::EdgeSpans getVisibleEdgeSpans()
+{
+  std::vector<MonitorRect> monitors;
+  if (!EnumDisplayMonitors(nullptr, nullptr, collectMonitorRect, reinterpret_cast<LPARAM>(&monitors))) {
+    return {};
+  }
+
+  MSWindowsHook::EdgeSpans edgeSpans;
+  for (size_t index = 0; index < monitors.size(); ++index) {
+    const auto &monitor = monitors[index];
+
+    std::vector<Interval> topSpans = {{monitor.left, monitor.right}};
+    std::vector<Interval> bottomSpans = {{monitor.left, monitor.right}};
+    std::vector<Interval> leftSpans = {{monitor.top, monitor.bottom}};
+    std::vector<Interval> rightSpans = {{monitor.top, monitor.bottom}};
+
+    for (size_t otherIndex = 0; otherIndex < monitors.size(); ++otherIndex) {
+      if (index == otherIndex) {
+        continue;
+      }
+
+      const auto &other = monitors[otherIndex];
+      const int32_t xStart = maxValue(monitor.left, other.left);
+      const int32_t xEnd = minValue(monitor.right, other.right);
+      const int32_t yStart = maxValue(monitor.top, other.top);
+      const int32_t yEnd = minValue(monitor.bottom, other.bottom);
+
+      if (xStart < xEnd && other.top < monitor.top && other.bottom >= monitor.top) {
+        subtractInterval(topSpans, xStart, xEnd);
+      }
+      if (xStart < xEnd && other.top <= monitor.bottom && other.bottom > monitor.bottom) {
+        subtractInterval(bottomSpans, xStart, xEnd);
+      }
+      if (yStart < yEnd && other.left < monitor.left && other.right >= monitor.left) {
+        subtractInterval(leftSpans, yStart, yEnd);
+      }
+      if (yStart < yEnd && other.left <= monitor.right && other.right > monitor.right) {
+        subtractInterval(rightSpans, yStart, yEnd);
+      }
+    }
+
+    for (const auto &span : topSpans) {
+      if (span.start < span.end) {
+        edgeSpans.push_back({Direction::Top, span.start, span.end, monitor.top});
+      }
+    }
+    for (const auto &span : bottomSpans) {
+      if (span.start < span.end) {
+        edgeSpans.push_back({Direction::Bottom, span.start, span.end, monitor.bottom});
+      }
+    }
+    for (const auto &span : leftSpans) {
+      if (span.start < span.end) {
+        edgeSpans.push_back({Direction::Left, span.start, span.end, monitor.left});
+      }
+    }
+    for (const auto &span : rightSpans) {
+      if (span.start < span.end) {
+        edgeSpans.push_back({Direction::Right, span.start, span.end, monitor.right});
+      }
+    }
+  }
+
+  return edgeSpans;
+}
+
+} // namespace
 
 MSWindowsScreen::MSWindowsScreen(bool isPrimary, bool useHooks, IEventQueue *events, bool enableLangSync)
     : PlatformScreen(events),
@@ -1433,6 +1570,10 @@ void MSWindowsScreen::updateScreenShape()
 
   // tell the desks
   m_desks->setShape(m_x, m_y, m_w, m_h, m_xCenter, m_yCenter, m_multimon);
+
+  if (m_isPrimary && m_useHooks) {
+    m_hook.setVisibleEdgeSpans(getVisibleEdgeSpans());
+  }
 }
 
 void MSWindowsScreen::handleFixes()
