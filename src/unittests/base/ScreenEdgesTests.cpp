@@ -232,7 +232,7 @@ void ScreenEdgesTests::projectFromVisibleEdge_virtualBottomHoleAtInnerCorner_pre
   QCOMPARE(y, 91);
 }
 
-void ScreenEdgesTests::projectFromVisibleEdge_virtualRightHole_prefersInternalScreenRight()
+void ScreenEdgesTests::projectFromVisibleEdge_virtualRightHole_prefersInternalScreenLeft()
 {
   const std::vector<deskflow::ScreenRect> screens = {
       {-100, 0, 100, 200},
@@ -245,7 +245,24 @@ void ScreenEdgesTests::projectFromVisibleEdge_virtualRightHole_prefersInternalSc
   const bool projected = deskflow::projectFromVisibleEdge(screens, 8, x, y);
 
   QVERIFY(projected);
-  QCOMPARE(x, -9);
+  QCOMPARE(x, 108);
+  QCOMPARE(y, 150);
+}
+
+void ScreenEdgesTests::projectFromVisibleEdge_insideVirtualRightEdge_prefersInternalScreenLeft()
+{
+  const std::vector<deskflow::ScreenRect> screens = {
+      {-100, 0, 100, 200},
+      {0, 0, 100, 100},
+      {100, 0, 100, 200},
+  };
+  int32_t x = 199;
+  int32_t y = 150;
+
+  const bool projected = deskflow::projectFromVisibleEdge(screens, 8, x, y);
+
+  QVERIFY(projected);
+  QCOMPARE(x, 108);
   QCOMPARE(y, 150);
 }
 

@@ -349,29 +349,30 @@ bool projectFromVisibleEdge(
       if (requireInternal && !outsideCoordinateIsInsideBounds(screen, bounds, side)) {
         continue;
       }
+      const bool forceOntoInternalEdge = requireInternal && outsideCoordinateIsInsideBounds(screen, bounds, side);
 
       switch (side) {
         using enum Direction;
       case Left:
-        if (x < screen.x) {
+        if (x < screen.x || forceOntoInternalEdge) {
           x = std::min(right(screen) - 1, screen.x + inset);
           return true;
         }
         break;
       case Right:
-        if (x >= right(screen)) {
+        if (x >= right(screen) || forceOntoInternalEdge) {
           x = std::max(screen.x, right(screen) - 1 - inset);
           return true;
         }
         break;
       case Top:
-        if (y < screen.y) {
+        if (y < screen.y || forceOntoInternalEdge) {
           y = std::min(bottom(screen) - 1, screen.y + inset);
           return true;
         }
         break;
       case Bottom:
-        if (y >= bottom(screen)) {
+        if (y >= bottom(screen) || forceOntoInternalEdge) {
           y = std::max(screen.y, bottom(screen) - 1 - inset);
           return true;
         }
@@ -438,12 +439,21 @@ bool projectToVisibleEdge(
 
 bool projectFromVisibleEdge(const std::vector<ScreenRect> &screens, int32_t edgeInset, int32_t &x, int32_t &y)
 {
-  if (screens.empty() || containsAny(screens, x, y)) {
+  if (screens.empty()) {
     return false;
   }
 
   bool projected = false;
   const auto bounds = combinedBounds(screens);
+  const int32_t edgeBand = std::max<int32_t>(1, edgeInset * 2 + 1);
+  const bool nearLeft = x <= bounds.x + edgeBand;
+  const bool nearRight = x >= right(bounds) - 1 - edgeBand;
+  const bool nearTop = y <= bounds.y + edgeBand;
+  const bool nearBottom = y >= bottom(bounds) - 1 - edgeBand;
+  if (containsAny(screens, x, y) && !nearLeft && !nearRight && !nearTop && !nearBottom) {
+    return false;
+  }
+
   std::array<Direction, static_cast<size_t>(Direction::NumDirections)> sides = {
       Direction::Left, Direction::Right, Direction::Top, Direction::Bottom
   };
@@ -454,16 +464,22 @@ bool projectFromVisibleEdge(const std::vector<ScreenRect> &screens, int32_t edge
     }
   };
 
-  if (y <= bounds.y) {
-    addSide(Direction::Top);
-  }
-  if (y >= bottom(bounds) - 1) {
-    addSide(Direction::Bottom);
-  }
-  if (x <= bounds.x) {
+  if (nearRight) {
     addSide(Direction::Left);
   }
-  if (x >= right(bounds) - 1) {
+  if (nearLeft) {
+    addSide(Direction::Right);
+  }
+  if (nearTop) {
+    addSide(Direction::Top);
+  }
+  if (nearBottom) {
+    addSide(Direction::Bottom);
+  }
+  if (nearLeft) {
+    addSide(Direction::Left);
+  }
+  if (nearRight) {
     addSide(Direction::Right);
   }
 
