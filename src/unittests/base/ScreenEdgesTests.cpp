@@ -131,6 +131,24 @@ void ScreenEdgesTests::projectToVisibleEdge_centerRightWithFartherTopAndBottomSc
   QCOMPARE(y, 50);
 }
 
+void ScreenEdgesTests::projectToVisibleEdge_outerRightOverlappingInnerHoleWall_preservesPosition()
+{
+  const std::vector<deskflow::ScreenRect> screens = {
+      {-100, 0, 100, 200},
+      {0, 0, 100, 100},
+      {100, 0, 100, 200},
+  };
+  int32_t x = 199;
+  int32_t y = 150;
+
+  const bool projected =
+      deskflow::projectToVisibleEdge(screens, side(DirectionMask::RightMask), 8, {-100, 0, 300, 200}, x, y);
+
+  QVERIFY(!projected);
+  QCOMPARE(x, 199);
+  QCOMPARE(y, 150);
+}
+
 void ScreenEdgesTests::projectToVisibleEdge_centerLeftWithFartherTopAndBottomScreens_projectsToVirtualLeft()
 {
   const std::vector<deskflow::ScreenRect> screens = {

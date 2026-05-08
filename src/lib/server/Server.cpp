@@ -1791,13 +1791,25 @@ void Server::onMouseMoveSecondary(int32_t dx, int32_t dy)
 
     Direction dir;
     using enum Direction;
-    if (m_x < ax) {
+    const bool outsideLeft = m_x < ax;
+    const bool outsideRight = m_x > ax + aw - 1;
+    const bool outsideTop = m_y < ay;
+    const bool outsideBottom = m_y > ay + ah - 1;
+    const bool outsideHorizontal = outsideLeft || outsideRight;
+    const bool outsideVertical = outsideTop || outsideBottom;
+    if (outsideHorizontal && outsideVertical) {
+      if (std::abs(m_yDelta) >= std::abs(m_xDelta)) {
+        dir = outsideTop ? Top : Bottom;
+      } else {
+        dir = outsideLeft ? Left : Right;
+      }
+    } else if (outsideLeft) {
       dir = Left;
-    } else if (m_x > ax + aw - 1) {
+    } else if (outsideRight) {
       dir = Right;
-    } else if (m_y < ay) {
+    } else if (outsideTop) {
       dir = Top;
-    } else if (m_y > ay + ah - 1) {
+    } else if (outsideBottom) {
       dir = Bottom;
     } else {
       // we haven't left the screen

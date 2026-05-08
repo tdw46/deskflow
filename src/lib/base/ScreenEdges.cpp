@@ -151,6 +151,28 @@ bool outsideCoordinateIsInsideBounds(const ScreenRect &screen, const ScreenRect 
   return outside > bounds.x && outside < right(bounds) - 1;
 }
 
+bool isVisibleEdgePoint(const std::vector<ScreenRect> &screens, const ScreenRect &screen, Direction side, int32_t axis);
+
+bool hasOverlappingInternalVisibleEdge(
+    const std::vector<ScreenRect> &screens, const ScreenRect &bounds, const ScreenRect &candidate, Direction side,
+    int32_t axis
+)
+{
+  for (const auto &screen : screens) {
+    if (screen.x == candidate.x && screen.y == candidate.y && screen.w == candidate.w && screen.h == candidate.h) {
+      continue;
+    }
+    if (!outsideCoordinateIsInsideBounds(screen, bounds, side)) {
+      continue;
+    }
+    if (isVisibleEdgePoint(screens, screen, side, axis)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 int32_t projectedBoundsCoordinate(const ScreenRect &bounds, Direction side)
 {
   switch (side) {
@@ -380,6 +402,10 @@ bool projectToVisibleEdge(
     int32_t &x, int32_t &y
 )
 {
+  if (screens.empty()) {
+    return false;
+  }
+
   bool projected = false;
   for (Direction side = Direction::FirstDirection; side <= Direction::LastDirection;
        side = static_cast<Direction>(static_cast<int>(side) + 1)) {
@@ -389,6 +415,12 @@ bool projectToVisibleEdge(
 
     for (const auto &screen : screens) {
       if (!isVisibleEdge(screens, screen, side, edgeBandSize, x, y)) {
+        continue;
+      }
+
+      const int32_t axis = getAxisCoordinate(side, x, y);
+      if (!outsideCoordinateIsInsideBounds(screen, bounds, side) &&
+          hasOverlappingInternalVisibleEdge(screens, bounds, screen, side, axis)) {
         continue;
       }
 
