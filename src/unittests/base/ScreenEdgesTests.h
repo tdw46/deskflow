@@ -23,6 +23,8 @@ private Q_SLOTS:
   void projectToVisibleEdge_centerTopWithHigherSideScreens_projectsToVirtualTop();
   void projectFromVisibleBottomEdge_virtualBottomHole_projectsToScreenBottom();
   void projectFromVisibleEdge_virtualRightHole_projectsToScreenRight();
+  void projectFromVisibleEdge_virtualBottomHoleAtInnerCorner_prefersScreenBottom();
+  void projectFromVisibleEdge_virtualRightHole_prefersInternalScreenRight();
   void projectFromVisibleBottomEdge_positionInsideScreen_preservesPosition();
   void visibleBottomEdgeInterval_centerBottomWithLowerSideScreens_returnsCenterInterval();
   void visibleEdgeInterval_centerRightWithFartherTopAndBottomScreens_returnsCenterInterval();

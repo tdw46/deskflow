@@ -154,6 +154,12 @@ struct DesktopGeometry
   std::vector<QRect> screens;
 };
 
+struct Segment
+{
+  int start = 0;
+  int end = 0;
+};
+
 std::optional<DesktopGeometry> getDesktopGeometry()
 {
   const auto screens = QGuiApplication::screens();
@@ -192,6 +198,76 @@ std::optional<deskflow::ScreenEdgeInterval> primaryEdgeInterval(Direction side)
 QString formatInterval(const deskflow::ScreenEdgeInterval &interval)
 {
   return QStringLiteral("(%1,%2)").arg(interval.start, 0, 'f', 4).arg(interval.end, 0, 'f', 4);
+}
+
+bool containsPoint(const QRect &rect, int x, int y)
+{
+  return x >= rect.x() && x < rectRight(rect) && y >= rect.y() && y < rectBottom(rect);
+}
+
+void subtractSegment(std::vector<Segment> &segments, const Segment &cover)
+{
+  std::vector<Segment> next;
+  for (const auto &segment : segments) {
+    if (cover.end <= segment.start || cover.start >= segment.end) {
+      next.push_back(segment);
+      continue;
+    }
+    if (cover.start > segment.start) {
+      next.push_back({segment.start, cover.start});
+    }
+    if (cover.end < segment.end) {
+      next.push_back({cover.end, segment.end});
+    }
+  }
+  segments = next;
+}
+
+int outsideCoordinate(const QRect &screen, Direction side)
+{
+  switch (side) {
+    using enum Direction;
+  case Left:
+    return screen.x() - 1;
+  case Right:
+    return rectRight(screen);
+  case Top:
+    return screen.y() - 1;
+  case Bottom:
+    return rectBottom(screen);
+  default:
+    return 0;
+  }
+}
+
+std::vector<Segment>
+visibleBoundarySegments(const DesktopGeometry &desktop, const QRect &screen, Direction side, int start, int end)
+{
+  std::vector<Segment> segments{{start, end}};
+  const auto outside = outsideCoordinate(screen, side);
+  for (const auto &other : desktop.screens) {
+    if (other == screen) {
+      continue;
+    }
+
+    const bool coversOutsideLine =
+        isHorizontal(side) ? containsPoint(other, start, outside) : containsPoint(other, outside, start);
+    const bool couldCoverOutsideLine = isHorizontal(side) ? (outside >= other.y() && outside < rectBottom(other))
+                                                          : (outside >= other.x() && outside < rectRight(other));
+    if (!coversOutsideLine && !couldCoverOutsideLine) {
+      continue;
+    }
+
+    const Segment cover{
+        std::max(start, axisStart(other, side)),
+        std::min(end, axisEnd(other, side)),
+    };
+    if (cover.start < cover.end) {
+      subtractSegment(segments, cover);
+    }
+  }
+
+  return segments;
 }
 
 QString formatLinkLine(
@@ -273,15 +349,22 @@ void addVerticalHoleLinks(const DesktopGeometry &desktop, const QRect &hole, std
       continue;
     }
 
-    const auto serverInterval = intervalForRange(overlapStart, overlapEnd, boundsTop, boundsBottom);
-    if (!serverInterval) {
-      continue;
-    }
-
     if (rectRight(screen) == hole.x()) {
-      links.push_back({Direction::Right, *serverInterval, Direction::Left, fullInterval()});
+      for (const auto &segment : visibleBoundarySegments(desktop, screen, Direction::Right, overlapStart, overlapEnd)) {
+        const auto serverInterval = intervalForRange(segment.start, segment.end, boundsTop, boundsBottom);
+        const auto clientInterval = intervalForRange(segment.start, segment.end, holeTop, holeBottom);
+        if (serverInterval && clientInterval) {
+          links.push_back({Direction::Right, *serverInterval, Direction::Left, *clientInterval});
+        }
+      }
     } else if (screen.x() == rectRight(hole)) {
-      links.push_back({Direction::Left, *serverInterval, Direction::Right, fullInterval()});
+      for (const auto &segment : visibleBoundarySegments(desktop, screen, Direction::Left, overlapStart, overlapEnd)) {
+        const auto serverInterval = intervalForRange(segment.start, segment.end, boundsTop, boundsBottom);
+        const auto clientInterval = intervalForRange(segment.start, segment.end, holeTop, holeBottom);
+        if (serverInterval && clientInterval) {
+          links.push_back({Direction::Left, *serverInterval, Direction::Right, *clientInterval});
+        }
+      }
     }
   }
 }
@@ -304,15 +387,23 @@ void addHorizontalHoleLinks(const DesktopGeometry &desktop, const QRect &hole, s
       continue;
     }
 
-    const auto serverInterval = intervalForRange(overlapStart, overlapEnd, boundsLeft, boundsRight);
-    if (!serverInterval) {
-      continue;
-    }
-
     if (rectBottom(screen) == hole.y()) {
-      links.push_back({Direction::Bottom, *serverInterval, Direction::Top, fullInterval()});
+      for (const auto &segment :
+           visibleBoundarySegments(desktop, screen, Direction::Bottom, overlapStart, overlapEnd)) {
+        const auto serverInterval = intervalForRange(segment.start, segment.end, boundsLeft, boundsRight);
+        const auto clientInterval = intervalForRange(segment.start, segment.end, holeLeft, holeRight);
+        if (serverInterval && clientInterval) {
+          links.push_back({Direction::Bottom, *serverInterval, Direction::Top, *clientInterval});
+        }
+      }
     } else if (screen.y() == rectBottom(hole)) {
-      links.push_back({Direction::Top, *serverInterval, Direction::Bottom, fullInterval()});
+      for (const auto &segment : visibleBoundarySegments(desktop, screen, Direction::Top, overlapStart, overlapEnd)) {
+        const auto serverInterval = intervalForRange(segment.start, segment.end, boundsLeft, boundsRight);
+        const auto clientInterval = intervalForRange(segment.start, segment.end, holeLeft, holeRight);
+        if (serverInterval && clientInterval) {
+          links.push_back({Direction::Top, *serverInterval, Direction::Bottom, *clientInterval});
+        }
+      }
     }
   }
 }

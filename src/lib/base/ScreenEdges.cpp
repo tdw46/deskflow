@@ -9,6 +9,7 @@
 #include "base/DirectionTypes.h"
 
 #include <algorithm>
+#include <array>
 
 namespace deskflow {
 
@@ -44,6 +45,19 @@ bool containsAny(const std::vector<ScreenRect> &screens, int32_t x, int32_t y)
     }
   }
   return false;
+}
+
+ScreenRect combinedBounds(const std::vector<ScreenRect> &screens)
+{
+  ScreenRect bounds = screens.front();
+  for (const auto &screen : screens) {
+    const int32_t minX = std::min(bounds.x, screen.x);
+    const int32_t minY = std::min(bounds.y, screen.y);
+    const int32_t maxX = std::max(right(bounds), right(screen));
+    const int32_t maxY = std::max(bottom(bounds), bottom(screen));
+    bounds = {minX, minY, maxX - minX, maxY - minY};
+  }
+  return bounds;
 }
 
 uint32_t sideMask(Direction side)
@@ -125,6 +139,16 @@ int32_t outsideCoordinate(const ScreenRect &screen, Direction side)
   default:
     return 0;
   }
+}
+
+bool outsideCoordinateIsInsideBounds(const ScreenRect &screen, const ScreenRect &bounds, Direction side)
+{
+  const auto outside = outsideCoordinate(screen, side);
+  if (isHorizontal(side)) {
+    return outside > bounds.y && outside < bottom(bounds) - 1;
+  }
+
+  return outside > bounds.x && outside < right(bounds) - 1;
 }
 
 int32_t projectedBoundsCoordinate(const ScreenRect &bounds, Direction side)
@@ -288,42 +312,62 @@ bool projectFromVisibleEdge(
     const std::vector<ScreenRect> &screens, Direction side, int32_t edgeInset, int32_t &x, int32_t &y
 )
 {
+  if (screens.empty()) {
+    return false;
+  }
+
   const int32_t inset = std::max<int32_t>(0, edgeInset);
-  for (const auto &screen : screens) {
-    const int32_t axis = getAxisCoordinate(side, x, y);
-    if (!isVisibleEdgePoint(screens, screen, side, axis)) {
-      continue;
+  const auto bounds = combinedBounds(screens);
+  const auto tryProject = [&](bool requireInternal) {
+    for (const auto &screen : screens) {
+      const int32_t axis = getAxisCoordinate(side, x, y);
+      if (!isVisibleEdgePoint(screens, screen, side, axis)) {
+        continue;
+      }
+      if (requireInternal && !outsideCoordinateIsInsideBounds(screen, bounds, side)) {
+        continue;
+      }
+
+      switch (side) {
+        using enum Direction;
+      case Left:
+        if (x < screen.x) {
+          x = std::min(right(screen) - 1, screen.x + inset);
+          return true;
+        }
+        break;
+      case Right:
+        if (x >= right(screen)) {
+          x = std::max(screen.x, right(screen) - 1 - inset);
+          return true;
+        }
+        break;
+      case Top:
+        if (y < screen.y) {
+          y = std::min(bottom(screen) - 1, screen.y + inset);
+          return true;
+        }
+        break;
+      case Bottom:
+        if (y >= bottom(screen)) {
+          y = std::max(screen.y, bottom(screen) - 1 - inset);
+          return true;
+        }
+        break;
+      default:
+        break;
+      }
     }
 
-    switch (side) {
-      using enum Direction;
-    case Left:
-      if (x < screen.x) {
-        x = std::min(right(screen) - 1, screen.x + inset);
-        return true;
-      }
-      break;
-    case Right:
-      if (x >= right(screen)) {
-        x = std::max(screen.x, right(screen) - 1 - inset);
-        return true;
-      }
-      break;
-    case Top:
-      if (y < screen.y) {
-        y = std::min(bottom(screen) - 1, screen.y + inset);
-        return true;
-      }
-      break;
-    case Bottom:
-      if (y >= bottom(screen)) {
-        y = std::max(screen.y, bottom(screen) - 1 - inset);
-        return true;
-      }
-      break;
-    default:
-      break;
-    }
+    return false;
+  };
+
+  if (tryProject(true)) {
+    return true;
+  }
+
+  if (tryProject(false)) {
+    return true;
   }
 
   return false;
@@ -362,14 +406,45 @@ bool projectToVisibleEdge(
 
 bool projectFromVisibleEdge(const std::vector<ScreenRect> &screens, int32_t edgeInset, int32_t &x, int32_t &y)
 {
-  if (containsAny(screens, x, y)) {
+  if (screens.empty() || containsAny(screens, x, y)) {
     return false;
   }
 
   bool projected = false;
+  const auto bounds = combinedBounds(screens);
+  std::array<Direction, static_cast<size_t>(Direction::NumDirections)> sides = {
+      Direction::Left, Direction::Right, Direction::Top, Direction::Bottom
+  };
+  size_t sideCount = 0;
+  const auto addSide = [&](Direction side) {
+    if (std::find(sides.begin(), sides.begin() + sideCount, side) == sides.begin() + sideCount) {
+      sides[sideCount++] = side;
+    }
+  };
+
+  if (y <= bounds.y) {
+    addSide(Direction::Top);
+  }
+  if (y >= bottom(bounds) - 1) {
+    addSide(Direction::Bottom);
+  }
+  if (x <= bounds.x) {
+    addSide(Direction::Left);
+  }
+  if (x >= right(bounds) - 1) {
+    addSide(Direction::Right);
+  }
+
   for (Direction side = Direction::FirstDirection; side <= Direction::LastDirection;
        side = static_cast<Direction>(static_cast<int>(side) + 1)) {
-    projected = projectFromVisibleEdge(screens, side, edgeInset, x, y) || projected;
+    addSide(side);
+  }
+
+  for (size_t i = 0; i < sideCount; ++i) {
+    projected = projectFromVisibleEdge(screens, sides[i], edgeInset, x, y);
+    if (projected) {
+      break;
+    }
   }
 
   return projected;

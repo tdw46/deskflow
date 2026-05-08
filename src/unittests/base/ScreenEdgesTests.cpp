@@ -197,6 +197,40 @@ void ScreenEdgesTests::projectFromVisibleEdge_virtualRightHole_projectsToScreenR
   QCOMPARE(y, 50);
 }
 
+void ScreenEdgesTests::projectFromVisibleEdge_virtualBottomHoleAtInnerCorner_prefersScreenBottom()
+{
+  const std::vector<deskflow::ScreenRect> screens = {
+      {-100, 0, 100, 200},
+      {0, 0, 100, 100},
+      {100, 0, 100, 200},
+  };
+  int32_t x = 0;
+  int32_t y = 199;
+
+  const bool projected = deskflow::projectFromVisibleEdge(screens, 8, x, y);
+
+  QVERIFY(projected);
+  QCOMPARE(x, 0);
+  QCOMPARE(y, 91);
+}
+
+void ScreenEdgesTests::projectFromVisibleEdge_virtualRightHole_prefersInternalScreenRight()
+{
+  const std::vector<deskflow::ScreenRect> screens = {
+      {-100, 0, 100, 200},
+      {0, 0, 100, 100},
+      {100, 0, 100, 200},
+  };
+  int32_t x = 200;
+  int32_t y = 150;
+
+  const bool projected = deskflow::projectFromVisibleEdge(screens, 8, x, y);
+
+  QVERIFY(projected);
+  QCOMPARE(x, -9);
+  QCOMPARE(y, 150);
+}
+
 void ScreenEdgesTests::projectFromVisibleBottomEdge_positionInsideScreen_preservesPosition()
 {
   const std::vector<deskflow::ScreenRect> screens = {
