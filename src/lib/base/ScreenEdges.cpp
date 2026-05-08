@@ -152,20 +152,18 @@ bool outsideCoordinateIsInsideBounds(const ScreenRect &screen, const ScreenRect 
 }
 
 bool isVisibleEdgePoint(const std::vector<ScreenRect> &screens, const ScreenRect &screen, Direction side, int32_t axis);
+std::vector<EdgeSegment>
+visibleEdgeSegments(const std::vector<ScreenRect> &screens, const ScreenRect &screen, Direction side);
 
-bool hasOverlappingInternalVisibleEdge(
-    const std::vector<ScreenRect> &screens, const ScreenRect &bounds, const ScreenRect &candidate, Direction side,
-    int32_t axis
-)
+bool hasAnyInternalVisibleEdge(const std::vector<ScreenRect> &screens, const ScreenRect &bounds, Direction side)
 {
   for (const auto &screen : screens) {
-    if (screen.x == candidate.x && screen.y == candidate.y && screen.w == candidate.w && screen.h == candidate.h) {
-      continue;
-    }
     if (!outsideCoordinateIsInsideBounds(screen, bounds, side)) {
       continue;
     }
-    if (isVisibleEdgePoint(screens, screen, side, axis)) {
+
+    const auto segments = visibleEdgeSegments(screens, screen, side);
+    if (!segments.empty()) {
       return true;
     }
   }
@@ -414,14 +412,13 @@ bool projectToVisibleEdge(
       continue;
     }
 
+    const bool sideHasInternalVisibleEdge = hasAnyInternalVisibleEdge(screens, bounds, side);
     for (const auto &screen : screens) {
       if (!isVisibleEdge(screens, screen, side, edgeBandSize, x, y)) {
         continue;
       }
 
-      const int32_t axis = getAxisCoordinate(side, x, y);
-      if (!outsideCoordinateIsInsideBounds(screen, bounds, side) &&
-          hasOverlappingInternalVisibleEdge(screens, bounds, screen, side, axis)) {
+      if (!outsideCoordinateIsInsideBounds(screen, bounds, side) && sideHasInternalVisibleEdge) {
         continue;
       }
 

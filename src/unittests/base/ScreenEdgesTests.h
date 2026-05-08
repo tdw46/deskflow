@@ -20,6 +20,7 @@ private Q_SLOTS:
   void projectToVisibleBottomEdge_rectangularDesktopBottom_preservesPosition();
   void projectToVisibleEdge_centerRightWithFartherTopAndBottomScreens_projectsToVirtualRight();
   void projectToVisibleEdge_outerRightOverlappingInnerHoleWall_preservesPosition();
+  void projectToVisibleEdge_outerRightWithInnerHoleWallElsewhere_preservesPosition();
   void projectToVisibleEdge_centerLeftWithFartherTopAndBottomScreens_projectsToVirtualLeft();
   void projectToVisibleEdge_centerTopWithHigherSideScreens_projectsToVirtualTop();
   void projectFromVisibleBottomEdge_virtualBottomHole_projectsToScreenBottom();
