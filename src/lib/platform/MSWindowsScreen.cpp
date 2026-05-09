@@ -1257,14 +1257,19 @@ bool MSWindowsScreen::onMouseMove(int32_t mx, int32_t my)
 
   int32_t reportX = mx;
   int32_t reportY = my;
+  const bool crossedVisibleEdge = m_isOnScreen && deskflow::projectToVisibleEdgeCrossing(
+                                                      m_monitorRects, m_hook.getSides(), {m_x, m_y, m_w, m_h},
+                                                      m_xCursor, m_yCursor, mx, my, reportX, reportY
+                                                  );
   const bool blockedVisibleEdge = m_isOnScreen && deskflow::isBlockedByInternalVisibleEdge(
                                                       m_monitorRects, m_hook.getSides(), deskflow::VisibleEdgeBand,
                                                       {m_x, m_y, m_w, m_h}, reportX, reportY
                                                   );
-  const bool projectedVisibleEdge = m_isOnScreen && deskflow::projectToVisibleEdge(
-                                                        m_monitorRects, m_hook.getSides(), deskflow::VisibleEdgeBand,
-                                                        {m_x, m_y, m_w, m_h}, reportX, reportY
-                                                    );
+  const bool projectedVisibleEdge =
+      crossedVisibleEdge || (m_isOnScreen && deskflow::projectToVisibleEdge(
+                                                 m_monitorRects, m_hook.getSides(), deskflow::VisibleEdgeBand,
+                                                 {m_x, m_y, m_w, m_h}, reportX, reportY
+                                             ));
 
   // Ignore unchanged positions unless they project onto a visible monitor
   // edge. Windows can clamp the cursor there while the user keeps moving

@@ -10,6 +10,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
+#include <limits>
 
 namespace deskflow {
 
@@ -460,6 +462,89 @@ bool isBlockedByInternalVisibleEdge(
   }
 
   return false;
+}
+
+bool projectToVisibleEdgeCrossing(
+    const std::vector<ScreenRect> &screens, uint32_t activeSides, const ScreenRect &bounds, int32_t fromX,
+    int32_t fromY, int32_t toX, int32_t toY, int32_t &x, int32_t &y
+)
+{
+  if (screens.empty() || (fromX == toX && fromY == toY)) {
+    return false;
+  }
+
+  double bestT = std::numeric_limits<double>::infinity();
+  Direction bestSide = Direction::NoDirection;
+  int32_t bestAxis = 0;
+
+  for (Direction side = Direction::FirstDirection; side <= Direction::LastDirection;
+       side = static_cast<Direction>(static_cast<int>(side) + 1)) {
+    if ((activeSides & sideMask(side)) == 0) {
+      continue;
+    }
+
+    const bool sideHasInternalVisibleEdge = hasAnyInternalVisibleEdge(screens, bounds, side);
+    for (const auto &screen : screens) {
+      if (sideHasInternalVisibleEdge && !outsideCoordinateIsInsideBounds(screen, bounds, side)) {
+        continue;
+      }
+
+      const int32_t edge = edgeCoordinate(screen, side);
+      double t = std::numeric_limits<double>::infinity();
+      switch (side) {
+        using enum Direction;
+      case Left:
+        if (fromX >= edge && toX <= edge && fromX != toX) {
+          t = static_cast<double>(fromX - edge) / static_cast<double>(fromX - toX);
+        }
+        break;
+      case Right:
+        if (fromX <= edge && toX >= edge && fromX != toX) {
+          t = static_cast<double>(edge - fromX) / static_cast<double>(toX - fromX);
+        }
+        break;
+      case Top:
+        if (fromY >= edge && toY <= edge && fromY != toY) {
+          t = static_cast<double>(fromY - edge) / static_cast<double>(fromY - toY);
+        }
+        break;
+      case Bottom:
+        if (fromY <= edge && toY >= edge && fromY != toY) {
+          t = static_cast<double>(edge - fromY) / static_cast<double>(toY - fromY);
+        }
+        break;
+      default:
+        break;
+      }
+
+      if (t < 0.0 || t > 1.0 || t >= bestT) {
+        continue;
+      }
+
+      const double axis = isHorizontal(side) ? fromX + (toX - fromX) * t : fromY + (toY - fromY) * t;
+      const int32_t axisInt = static_cast<int32_t>(std::lround(axis));
+      if (!isVisibleEdgePoint(screens, screen, side, axisInt)) {
+        continue;
+      }
+
+      bestT = t;
+      bestSide = side;
+      bestAxis = axisInt;
+    }
+  }
+
+  if (bestSide == Direction::NoDirection) {
+    return false;
+  }
+
+  if (isHorizontal(bestSide)) {
+    x = bestAxis;
+    y = projectedBoundsCoordinate(bounds, bestSide);
+  } else {
+    x = projectedBoundsCoordinate(bounds, bestSide);
+    y = bestAxis;
+  }
+  return true;
 }
 
 bool projectFromVisibleEdge(const std::vector<ScreenRect> &screens, int32_t edgeInset, int32_t &x, int32_t &y)

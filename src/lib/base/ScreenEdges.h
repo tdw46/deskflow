@@ -35,6 +35,11 @@ bool projectToVisibleEdge(
     int32_t &x, int32_t &y
 );
 
+bool projectToVisibleEdgeCrossing(
+    const std::vector<ScreenRect> &screens, uint32_t activeSides, const ScreenRect &bounds, int32_t fromX,
+    int32_t fromY, int32_t toX, int32_t toY, int32_t &x, int32_t &y
+);
+
 bool isBlockedByInternalVisibleEdge(
     const std::vector<ScreenRect> &screens, uint32_t activeSides, int32_t edgeBandSize, const ScreenRect &bounds,
     int32_t x, int32_t y

@@ -23,6 +23,9 @@ private Q_SLOTS:
   void projectToVisibleEdge_outerRightWithInnerHoleWallElsewhere_preservesPosition();
   void isBlockedByInternalVisibleEdge_outerRightWithInnerHoleWall_returnsTrue();
   void isBlockedByInternalVisibleEdge_innerHoleWall_returnsFalse();
+  void projectToVisibleEdgeCrossing_fastBottomCrossing_projectsToVirtualBottom();
+  void projectToVisibleEdgeCrossing_fastInnerRightCrossing_projectsToVirtualRight();
+  void projectToVisibleEdgeCrossing_fastOuterRightCrossingWithInnerWall_preservesPosition();
   void projectToVisibleEdge_centerLeftWithFartherTopAndBottomScreens_projectsToVirtualLeft();
   void projectToVisibleEdge_centerTopWithHigherSideScreens_projectsToVirtualTop();
   void projectFromVisibleBottomEdge_virtualBottomHole_projectsToScreenBottom();
