@@ -227,6 +227,45 @@ void ScreenEdgesTests::projectToVisibleEdgeCrossing_fastInnerRightCrossing_proje
   QCOMPARE(y, 150);
 }
 
+void ScreenEdgesTests::projectToVisibleEdgeCrossing_innerRightWallSnapToBottomCorner_keepsRightWall()
+{
+  const std::vector<deskflow::ScreenRect> screens = {
+      {-100, 0, 100, 200},
+      {0, 0, 100, 100},
+      {100, 0, 100, 200},
+  };
+  int32_t x = -1;
+  int32_t y = 199;
+
+  const bool projected = deskflow::projectToVisibleEdgeCrossing(
+      screens, side(DirectionMask::RightMask) | side(DirectionMask::BottomMask), {-100, 0, 300, 200}, -1, 150, -1, 199,
+      x, y
+  );
+
+  QVERIFY(projected);
+  QCOMPARE(x, 199);
+  QCOMPARE(y, 150);
+}
+
+void ScreenEdgesTests::projectToVisibleEdgeCrossing_innerRightWallMovedInward_preservesPosition()
+{
+  const std::vector<deskflow::ScreenRect> screens = {
+      {-100, 0, 100, 200},
+      {0, 0, 100, 100},
+      {100, 0, 100, 200},
+  };
+  int32_t x = -20;
+  int32_t y = 150;
+
+  const bool projected = deskflow::projectToVisibleEdgeCrossing(
+      screens, side(DirectionMask::RightMask), {-100, 0, 300, 200}, -1, 150, -20, 150, x, y
+  );
+
+  QVERIFY(!projected);
+  QCOMPARE(x, -20);
+  QCOMPARE(y, 150);
+}
+
 void ScreenEdgesTests::projectToVisibleEdgeCrossing_fastOuterRightCrossingWithInnerWall_preservesPosition()
 {
   const std::vector<deskflow::ScreenRect> screens = {
@@ -244,6 +283,34 @@ void ScreenEdgesTests::projectToVisibleEdgeCrossing_fastOuterRightCrossingWithIn
   QVERIFY(!projected);
   QCOMPARE(x, 250);
   QCOMPARE(y, 50);
+}
+
+void ScreenEdgesTests::projectToBoundsEdgeCrossing_fastLeftOvershoot_clampsToCrossedBoundary()
+{
+  Direction dir = Direction::NoDirection;
+  int32_t x = -250;
+  int32_t y = 120;
+
+  const bool projected = deskflow::projectToBoundsEdgeCrossing({0, 0, 300, 200}, 20, 100, -250, 120, dir, x, y);
+
+  QVERIFY(projected);
+  QCOMPARE(dir, Direction::Left);
+  QCOMPARE(x, -1);
+  QCOMPARE(y, 101);
+}
+
+void ScreenEdgesTests::projectToBoundsEdgeCrossing_fastDiagonalOvershoot_usesFirstCrossedBoundary()
+{
+  Direction dir = Direction::NoDirection;
+  int32_t x = 350;
+  int32_t y = 250;
+
+  const bool projected = deskflow::projectToBoundsEdgeCrossing({0, 0, 300, 200}, 250, 100, 350, 250, dir, x, y);
+
+  QVERIFY(projected);
+  QCOMPARE(dir, Direction::Right);
+  QCOMPARE(x, 300);
+  QCOMPARE(y, 174);
 }
 
 void ScreenEdgesTests::projectToVisibleEdge_centerLeftWithFartherTopAndBottomScreens_projectsToVirtualLeft()

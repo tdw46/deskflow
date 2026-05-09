@@ -10,6 +10,7 @@
 
 #include "base/IEventQueue.h"
 #include "base/Log.h"
+#include "base/ScreenEdges.h"
 #include "deskflow/AppUtil.h"
 #include "deskflow/DeskflowException.h"
 #include "deskflow/IPlatformScreen.h"
@@ -25,10 +26,8 @@
 #include "server/ClientProxyUnknown.h"
 #include "server/PrimaryClient.h"
 
-#ifdef _WIN32
 #include <algorithm>
 #include <array>
-#endif
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -1792,13 +1791,26 @@ void Server::onMouseMoveSecondary(int32_t dx, int32_t dy)
 
     Direction dir;
     using enum Direction;
+    int32_t switchX = m_x;
+    int32_t switchY = m_y;
+    if (deskflow::projectToBoundsEdgeCrossing({ax, ay, aw, ah}, xOld, yOld, m_x, m_y, dir, switchX, switchY)) {
+      m_x = switchX;
+      m_y = switchY;
+    } else {
+      dir = NoDirection;
+    }
+
     const bool outsideLeft = m_x < ax;
     const bool outsideRight = m_x > ax + aw - 1;
     const bool outsideTop = m_y < ay;
     const bool outsideBottom = m_y > ay + ah - 1;
     const bool outsideHorizontal = outsideLeft || outsideRight;
     const bool outsideVertical = outsideTop || outsideBottom;
-    if (outsideHorizontal && outsideVertical) {
+    if (dir != NoDirection) {
+      // Use the first boundary crossing instead of preserving fast overshoot
+      // into the neighboring screen.  The latter can skip across an uneven
+      // monitor hole and trigger the wrong reciprocal link.
+    } else if (outsideHorizontal && outsideVertical) {
       const auto crossingTime = [](int32_t oldPos, int32_t delta, int32_t edge) {
         if (delta == 0) {
           return std::numeric_limits<double>::infinity();

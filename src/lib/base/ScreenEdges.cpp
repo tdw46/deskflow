@@ -473,6 +473,36 @@ bool projectToVisibleEdgeCrossing(
     return false;
   }
 
+  for (Direction side = Direction::FirstDirection; side <= Direction::LastDirection;
+       side = static_cast<Direction>(static_cast<int>(side) + 1)) {
+    if ((activeSides & sideMask(side)) == 0 || !hasAnyInternalVisibleEdge(screens, bounds, side)) {
+      continue;
+    }
+
+    const bool movingOutwardOrAlongEdge =
+        (side == Direction::Left && toX <= fromX) || (side == Direction::Right && toX >= fromX) ||
+        (side == Direction::Top && toY <= fromY) || (side == Direction::Bottom && toY >= fromY);
+    if (!movingOutwardOrAlongEdge) {
+      continue;
+    }
+
+    for (const auto &screen : screens) {
+      if (!outsideCoordinateIsInsideBounds(screen, bounds, side) ||
+          !isVisibleEdge(screens, screen, side, VisibleEdgeBand, fromX, fromY)) {
+        continue;
+      }
+
+      if (isHorizontal(side)) {
+        x = getAxisCoordinate(side, fromX, fromY);
+        y = projectedBoundsCoordinate(bounds, side);
+      } else {
+        x = projectedBoundsCoordinate(bounds, side);
+        y = getAxisCoordinate(side, fromX, fromY);
+      }
+      return true;
+    }
+  }
+
   double bestT = std::numeric_limits<double>::infinity();
   Direction bestSide = Direction::NoDirection;
   int32_t bestAxis = 0;
@@ -544,6 +574,75 @@ bool projectToVisibleEdgeCrossing(
     x = projectedBoundsCoordinate(bounds, bestSide);
     y = bestAxis;
   }
+  return true;
+}
+
+bool projectToBoundsEdgeCrossing(
+    const ScreenRect &bounds, int32_t fromX, int32_t fromY, int32_t toX, int32_t toY, Direction &side, int32_t &x,
+    int32_t &y
+)
+{
+  if (fromX == toX && fromY == toY) {
+    return false;
+  }
+
+  double bestT = std::numeric_limits<double>::infinity();
+  side = Direction::NoDirection;
+
+  const auto consider = [&](Direction candidateSide, int32_t oldPos, int32_t newPos, int32_t edge) {
+    if (oldPos == newPos) {
+      return;
+    }
+
+    const double t = static_cast<double>(edge - oldPos) / static_cast<double>(newPos - oldPos);
+    if (t < 0.0 || t > 1.0 || t >= bestT) {
+      return;
+    }
+
+    bestT = t;
+    side = candidateSide;
+  };
+
+  if (toX < bounds.x) {
+    consider(Direction::Left, fromX, toX, bounds.x);
+  }
+  if (toX > right(bounds) - 1) {
+    consider(Direction::Right, fromX, toX, right(bounds) - 1);
+  }
+  if (toY < bounds.y) {
+    consider(Direction::Top, fromY, toY, bounds.y);
+  }
+  if (toY > bottom(bounds) - 1) {
+    consider(Direction::Bottom, fromY, toY, bottom(bounds) - 1);
+  }
+
+  if (side == Direction::NoDirection) {
+    return false;
+  }
+
+  const double crossedX = fromX + (toX - fromX) * bestT;
+  const double crossedY = fromY + (toY - fromY) * bestT;
+  x = static_cast<int32_t>(std::lround(crossedX));
+  y = static_cast<int32_t>(std::lround(crossedY));
+
+  switch (side) {
+    using enum Direction;
+  case Left:
+    x = bounds.x - 1;
+    break;
+  case Right:
+    x = right(bounds);
+    break;
+  case Top:
+    y = bounds.y - 1;
+    break;
+  case Bottom:
+    y = bottom(bounds);
+    break;
+  default:
+    return false;
+  }
+
   return true;
 }
 
