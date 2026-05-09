@@ -11,6 +11,7 @@
 #include "arch/Arch.h"
 #include "arch/win32/ArchMiscWindows.h"
 #include "arch/win32/XArchWindows.h"
+#include "base/DirectionTypes.h"
 #include "base/IEventQueue.h"
 #include "base/Log.h"
 #include "base/TMethodJob.h"
@@ -1307,7 +1308,16 @@ bool MSWindowsScreen::onMouseMove(int32_t mx, int32_t my)
     // ignore (see warpCursorNoFlush() for a further
     // description).
     static int32_t bogusZoneSize = 10;
-    if (-x + bogusZoneSize > m_xCenter - m_x || x + bogusZoneSize > m_x + m_w - m_xCenter ||
+    int32_t edgeX = m_xCenter + x;
+    int32_t edgeY = m_yCenter + y;
+    const bool bogusVisibleEdgeDelta = deskflow::projectToVisibleEdge(
+        m_monitorRects,
+        static_cast<uint32_t>(DirectionMask::LeftMask) | static_cast<uint32_t>(DirectionMask::RightMask) |
+            static_cast<uint32_t>(DirectionMask::TopMask) | static_cast<uint32_t>(DirectionMask::BottomMask),
+        deskflow::VisibleEdgeBand, {m_x, m_y, m_w, m_h}, edgeX, edgeY
+    );
+
+    if (bogusVisibleEdgeDelta || -x + bogusZoneSize > m_xCenter - m_x || x + bogusZoneSize > m_x + m_w - m_xCenter ||
         -y + bogusZoneSize > m_yCenter - m_y || y + bogusZoneSize > m_y + m_h - m_yCenter) {
 
       LOG_DEBUG("dropped bogus delta motion: %+d,%+d", x, y);
