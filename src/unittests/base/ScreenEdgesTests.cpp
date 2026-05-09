@@ -131,7 +131,7 @@ void ScreenEdgesTests::projectToVisibleEdge_centerRightWithFartherTopAndBottomSc
   QCOMPARE(y, 50);
 }
 
-void ScreenEdgesTests::projectToVisibleEdge_outerRightOverlappingInnerHoleWall_preservesPosition()
+void ScreenEdgesTests::projectToVisibleEdge_outerRightOverlappingInnerHoleWall_movesInside()
 {
   const std::vector<deskflow::ScreenRect> screens = {
       {-100, 0, 100, 200},
@@ -144,12 +144,12 @@ void ScreenEdgesTests::projectToVisibleEdge_outerRightOverlappingInnerHoleWall_p
   const bool projected =
       deskflow::projectToVisibleEdge(screens, side(DirectionMask::RightMask), 8, {-100, 0, 300, 200}, x, y);
 
-  QVERIFY(!projected);
-  QCOMPARE(x, 199);
+  QVERIFY(projected);
+  QCOMPARE(x, 191);
   QCOMPARE(y, 150);
 }
 
-void ScreenEdgesTests::projectToVisibleEdge_outerRightWithInnerHoleWallElsewhere_preservesPosition()
+void ScreenEdgesTests::projectToVisibleEdge_outerRightWithInnerHoleWallElsewhere_movesInside()
 {
   const std::vector<deskflow::ScreenRect> screens = {
       {-100, 0, 100, 200},
@@ -162,8 +162,8 @@ void ScreenEdgesTests::projectToVisibleEdge_outerRightWithInnerHoleWallElsewhere
   const bool projected =
       deskflow::projectToVisibleEdge(screens, side(DirectionMask::RightMask), 8, {-100, 0, 300, 200}, x, y);
 
-  QVERIFY(!projected);
-  QCOMPARE(x, 199);
+  QVERIFY(projected);
+  QCOMPARE(x, 191);
   QCOMPARE(y, 50);
 }
 

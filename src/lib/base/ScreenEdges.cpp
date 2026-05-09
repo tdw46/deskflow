@@ -197,6 +197,28 @@ void setEdgeCoordinate(Direction side, int32_t edge, int32_t &x, int32_t &y)
   }
 }
 
+void setInsideEdgeCoordinate(Direction side, const ScreenRect &screen, int32_t edgeBandSize, int32_t &x, int32_t &y)
+{
+  const int32_t inset = std::max<int32_t>(1, edgeBandSize);
+  switch (side) {
+    using enum Direction;
+  case Left:
+    x = std::min(right(screen) - 1, screen.x + inset);
+    break;
+  case Right:
+    x = std::max(screen.x, right(screen) - 1 - inset);
+    break;
+  case Top:
+    y = std::min(bottom(screen) - 1, screen.y + inset);
+    break;
+  case Bottom:
+    y = std::max(screen.y, bottom(screen) - 1 - inset);
+    break;
+  default:
+    break;
+  }
+}
+
 int32_t getAxisCoordinate(Direction side, int32_t x, int32_t y)
 {
   return isHorizontal(side) ? x : y;
@@ -419,6 +441,10 @@ bool projectToVisibleEdge(
       }
 
       if (!outsideCoordinateIsInsideBounds(screen, bounds, side) && sideHasInternalVisibleEdge) {
+        const int32_t oldX = x;
+        const int32_t oldY = y;
+        setInsideEdgeCoordinate(side, screen, edgeBandSize, x, y);
+        projected = projected || oldX != x || oldY != y;
         continue;
       }
 
