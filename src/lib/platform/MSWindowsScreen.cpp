@@ -1257,6 +1257,10 @@ bool MSWindowsScreen::onMouseMove(int32_t mx, int32_t my)
 
   int32_t reportX = mx;
   int32_t reportY = my;
+  const bool blockedVisibleEdge = m_isOnScreen && deskflow::isBlockedByInternalVisibleEdge(
+                                                      m_monitorRects, m_hook.getSides(), deskflow::VisibleEdgeBand,
+                                                      {m_x, m_y, m_w, m_h}, reportX, reportY
+                                                  );
   const bool projectedVisibleEdge = m_isOnScreen && deskflow::projectToVisibleEdge(
                                                         m_monitorRects, m_hook.getSides(), deskflow::VisibleEdgeBand,
                                                         {m_x, m_y, m_w, m_h}, reportX, reportY
@@ -1271,6 +1275,11 @@ bool MSWindowsScreen::onMouseMove(int32_t mx, int32_t my)
 
   // save position to compute delta of next motion
   saveMousePosition(mx, my);
+
+  if (blockedVisibleEdge) {
+    LOG_DEBUG2("blocked outer visible monitor edge: %+d,%+d", reportX, reportY);
+    return true;
+  }
 
   if (m_isOnScreen) {
     // motion on primary screen

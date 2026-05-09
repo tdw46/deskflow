@@ -767,8 +767,6 @@ void OSXScreen::enter()
   if (m_isPrimary) {
     setZeroSuppressionInterval();
   } else {
-    m_skipNextMouseMove = true;
-
     // reset buttons
     m_buttonState.reset();
 
@@ -971,14 +969,6 @@ bool OSXScreen::onMouseMove()
   CGFloat y = my - m_yCursor;
 
   if ((x == 0 && y == 0) || (mx == m_xCenter && mx == m_yCenter)) {
-    return true;
-  }
-
-  if (m_skipNextMouseMove) {
-    m_skipNextMouseMove = false;
-    m_xCursor = (int32_t)mx;
-    m_yCursor = (int32_t)my;
-    LOG_DEBUG2("dropped first motion after enter: %+f,%+f", x, y);
     return true;
   }
 

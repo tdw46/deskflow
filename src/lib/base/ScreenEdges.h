@@ -35,6 +35,11 @@ bool projectToVisibleEdge(
     int32_t &x, int32_t &y
 );
 
+bool isBlockedByInternalVisibleEdge(
+    const std::vector<ScreenRect> &screens, uint32_t activeSides, int32_t edgeBandSize, const ScreenRect &bounds,
+    int32_t x, int32_t y
+);
+
 bool projectFromVisibleEdge(const std::vector<ScreenRect> &screens, int32_t edgeInset, int32_t &x, int32_t &y);
 
 std::optional<ScreenEdgeInterval> visibleEdgeInterval(

@@ -33,6 +33,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <limits>
 
 using namespace deskflow::server;
 
@@ -1798,7 +1799,19 @@ void Server::onMouseMoveSecondary(int32_t dx, int32_t dy)
     const bool outsideHorizontal = outsideLeft || outsideRight;
     const bool outsideVertical = outsideTop || outsideBottom;
     if (outsideHorizontal && outsideVertical) {
-      if (std::abs(m_yDelta) >= std::abs(m_xDelta)) {
+      const auto crossingTime = [](int32_t oldPos, int32_t delta, int32_t edge) {
+        if (delta == 0) {
+          return std::numeric_limits<double>::infinity();
+        }
+        const double t = static_cast<double>(edge - oldPos) / static_cast<double>(delta);
+        return (t >= 0.0 && t <= 1.0) ? t : std::numeric_limits<double>::infinity();
+      };
+      const double tx = outsideLeft ? crossingTime(xOld, m_xDelta, ax) : crossingTime(xOld, m_xDelta, ax + aw - 1);
+      const double ty = outsideTop ? crossingTime(yOld, m_yDelta, ay) : crossingTime(yOld, m_yDelta, ay + ah - 1);
+
+      if (tx == ty) {
+        dir = std::abs(m_yDelta) >= std::abs(m_xDelta) ? (outsideTop ? Top : Bottom) : (outsideLeft ? Left : Right);
+      } else if (ty < tx) {
         dir = outsideTop ? Top : Bottom;
       } else {
         dir = outsideLeft ? Left : Right;

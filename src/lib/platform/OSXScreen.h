@@ -237,7 +237,6 @@ private:
   // mouse state
   mutable int32_t m_xCursor, m_yCursor;
   mutable bool m_cursorPosValid;
-  bool m_skipNextMouseMove = false;
 
   /* FIXME: this data structure is explicitly marked mutable due
      to a need to track the state of buttons since the remote
